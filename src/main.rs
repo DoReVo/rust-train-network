@@ -46,6 +46,79 @@ impl Move {
     }
 }
 
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
+use std::collections::HashSet;
+
+#[derive(Clone, Eq, PartialEq)]
+struct State {
+    cost: i32,
+    position: String,
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.cost.cmp(&self.cost)
+    }
+}
+
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+fn shortest_path(
+    edge_map: &HashMap<String, HashMap<String, i32>>,
+    start: &str,
+    end: &str,
+) -> Option<Vec<String>> {
+    let mut dist: HashMap<String, i32> = HashMap::new();
+    let mut prev: HashMap<String, String> = HashMap::new();
+    let mut visited = HashSet::new();
+    let mut heap = BinaryHeap::new();
+
+    dist.insert(start.to_string(), 0);
+    heap.push(State {
+        cost: 0,
+        position: start.to_string(),
+    });
+
+    while let Some(State { cost, position }) = heap.pop() {
+        if position == end {
+            let mut path = Vec::new();
+            let mut u = end;
+            while let Some(p) = prev.get(u) {
+                path.push(u.to_string());
+                u = p;
+            }
+            path.push(start.to_string());
+            path.reverse();
+            return Some(path);
+        }
+
+        visited.insert(position.clone());
+
+        if let Some(neighbors) = edge_map.get(&position) {
+            for (neighbor, &value) in neighbors {
+                let next = State {
+                    cost: cost + value,
+                    position: neighbor.to_string(),
+                };
+
+                if !visited.contains(neighbor)
+                    && (dist.get(neighbor).is_none() || next.cost < dist[neighbor])
+                {
+                    heap.push(next.clone());
+                    dist.insert(neighbor.to_string(), next.cost);
+                    prev.insert(neighbor.to_string(), position.clone());
+                }
+            }
+        }
+    }
+    None
+}
+
 fn main() {
     // List of train stations (nodes)
     let _nodes = vec![
@@ -215,29 +288,26 @@ fn main() {
                 );
             }
 
-            // If in train have packages, go to that package destination
-            let next_node: String = if let Some(packages) = packages_in_train.get(&train.name) {
-                let next_node_str = if let Some(package) = packages.first() {
-                    package.destination_node.clone()
-                } else {
-                    // if no packages in train, find the next
-                    // package to pickup from the global package variable
-                    packages_in_network
-                        .iter()
-                        .map(|p| p.start_node.clone())
-                        .next()
-                        .unwrap_or_else(|| train.current_node.clone())
-                };
-
-                next_node_str
+            let mut path: Vec<String> = if let Some(packages) = packages_in_train.get(&train.name) {
+                shortest_path(
+                    &edge_map,
+                    &train.current_node,
+                    &packages[0].destination_node,
+                )
+                .unwrap_or_else(Vec::new)
             } else {
-                // if no packages in train, find the next
-                // package to pickup from the global package variable
-                packages_in_network
-                    .iter()
-                    .map(|p| p.start_node.clone())
-                    .next()
-                    .unwrap_or_else(|| train.current_node.clone())
+                shortest_path(
+                    &edge_map,
+                    &train.current_node,
+                    &packages_in_network[0].start_node,
+                )
+                .unwrap_or_else(Vec::new)
+            };
+
+            let next_node = if path.len() > 1 {
+                path[1].clone()
+            } else {
+                train.current_node.clone()
             };
 
             println!("Train {} next node is set to {}", train.name, next_node);
