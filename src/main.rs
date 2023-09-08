@@ -38,7 +38,7 @@ struct Move {
 
 fn main() {
     // List of train stations (nodes)
-    let nodes = vec![
+    let _nodes = vec![
         "A".to_string(),
         "B".to_string(),
         "C".to_string(),
@@ -134,7 +134,7 @@ fn main() {
             .insert(edge.from_node.clone(), edge.journey_time);
     }
 
-    println!("Successfully created train network map {:?}", edge_map);
+    println!("Successfully created train network map {:?}\n", edge_map);
 
     while !packages.is_empty() {
         for train in &mut trains {
@@ -155,8 +155,12 @@ fn main() {
             let to_pickup_clone = to_pickup.clone();
 
             println!(
-                "Loading packages to pick up at station {}",
-                train.current_node
+                "Loading packages to pick up at station {}, Packages to pickup are - {:?}",
+                train.current_node,
+                to_pickup_clone
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<String>>()
             );
 
             if to_pickup.is_empty() {
@@ -272,6 +276,8 @@ fn main() {
             };
 
             moves.push(m);
+
+            print!("\n");
         }
     }
 
