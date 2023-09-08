@@ -1,4 +1,10 @@
 
+### How to run
+
+```bash
+cargo run
+```
+
 What it can do
 
 - Go to nodes with direct connections
