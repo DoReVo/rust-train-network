@@ -47,6 +47,8 @@ impl Move {
 }
 
 fn main() {
+    let mut LOOP_COUNTER = 0;
+
     // List of train stations (nodes)
     let _nodes = vec![
         "A".to_string(),
@@ -135,7 +137,13 @@ fn main() {
 
     let mut packages_in_train: HashMap<String, Vec<Package>> = HashMap::new();
 
-    while !packages_in_network.is_empty() {
+    // Create the entry for each train
+    trains.iter().for_each(|t| {
+        packages_in_train.insert(t.name.clone(), Vec::new());
+    });
+
+    loop {
+        LOOP_COUNTER += 1;
         for train in &mut trains {
             println!(
                 "Processing train {}, current station {}",
@@ -332,6 +340,12 @@ fn main() {
             moves.push(move_info);
 
             print!("\n");
+        }
+
+        if packages_in_network.is_empty() && packages_in_train.values().all(|v| v.is_empty())
+            || LOOP_COUNTER >= 10
+        {
+            break;
         }
     }
 
