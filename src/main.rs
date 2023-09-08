@@ -75,6 +75,12 @@ fn main() {
             to_node: "A".to_string(),
             journey_time: 30,
         },
+        Edge {
+            name: "E4".to_string(),
+            from_node: "A".to_string(),
+            to_node: "D".to_string(),
+            journey_time: 40,
+        },
     ];
 
     // Trains available
@@ -97,6 +103,12 @@ fn main() {
             weight: 5,
             start_node: "C".to_string(),
             destination_node: "A".to_string(),
+        },
+        Package {
+            name: "K3".to_string(),
+            weight: 5,
+            start_node: "A".to_string(),
+            destination_node: "D".to_string(),
         },
     ];
 
@@ -250,7 +262,7 @@ fn main() {
             train.current_node = next_node.clone();
             println!(
                 "Train {} moved to {} from {}",
-                train.name, next_node, train.current_node
+                train.name, next_node, move_info.start_node
             );
 
             move_info.end_node = next_node.clone();
@@ -295,8 +307,22 @@ fn main() {
 
             move_info.dropoff = dropoffs;
 
+            match packages_in_train.get(&train.name) {
+                Some(packages) => {
+                    println!(
+                        "Remaining packages in train {} is {:?}",
+                        train.name,
+                        packages
+                            .iter()
+                            .map(|p| p.name.clone())
+                            .collect::<Vec<String>>()
+                    );
+                }
+                None => {}
+            };
+
             println!(
-                "Packages left to be drop in the network {:?}",
+                "Remaining packages in the global network {:?}",
                 packages_in_network
                     .iter()
                     .map(|p| p.name.clone())
