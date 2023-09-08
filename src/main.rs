@@ -152,6 +152,8 @@ fn main() {
                 .filter(|p| p.start_node == train.current_node)
                 .collect();
 
+            let to_pickup_clone = to_pickup.clone();
+
             println!(
                 "Loading packages to pick up at station {}",
                 train.current_node
@@ -264,7 +266,7 @@ fn main() {
                 time,
                 train: train.name.clone(),
                 start_node: start_node,
-                pickup: to_pickup.into(),
+                pickup: to_pickup_clone.into(),
                 end_node: next_node,
                 dropoff: dropoffs,
             };
@@ -277,7 +279,18 @@ fn main() {
     for m in &moves {
         println!(
             "W={}, T={}, N1={}, P1={:?}, N2={}, P2={:?}",
-            m.time, m.train, m.start_node, m.pickup, m.end_node, m.dropoff
+            m.time,
+            m.train,
+            m.start_node,
+            m.pickup
+                .iter()
+                .map(|p| p.name.clone())
+                .collect::<Vec<String>>(),
+            m.end_node,
+            m.dropoff
+                .iter()
+                .map(|p| p.name.clone())
+                .collect::<Vec<String>>()
         );
     }
 }
