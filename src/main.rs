@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    vec,
-};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct Edge {
@@ -36,6 +33,19 @@ struct Move {
     dropoff: Vec<Package>,
 }
 
+impl Move {
+    fn new() -> Self {
+        Move {
+            time: 0,
+            train: "".to_string(),
+            start_node: "".to_string(),
+            pickup: vec![],
+            end_node: "".to_string(),
+            dropoff: vec![],
+        }
+    }
+}
+
 fn main() {
     // List of train stations (nodes)
     let _nodes = vec![
@@ -51,44 +61,31 @@ fn main() {
             name: "E1".to_string(),
             from_node: "A".to_string(),
             to_node: "B".to_string(),
-            journey_time: 30,
+            journey_time: 10,
         },
         Edge {
             name: "E2".to_string(),
             from_node: "B".to_string(),
             to_node: "C".to_string(),
-            journey_time: 10,
+            journey_time: 20,
         },
         Edge {
             name: "E3".to_string(),
             from_node: "C".to_string(),
             to_node: "A".to_string(),
-            journey_time: 20,
-        },
-        Edge {
-            name: "E4".to_string(),
-            from_node: "D".to_string(),
-            to_node: "A".to_string(),
-            journey_time: 15,
+            journey_time: 30,
         },
     ];
 
     // Trains available
-    let mut trains = vec![
-        Train {
-            name: "Q1".to_string(),
-            capacity: 6,
-            current_node: "B".to_string(),
-        },
-        Train {
-            name: "Q2".to_string(),
-            capacity: 10,
-            current_node: "C".to_string(),
-        },
-    ];
+    let mut trains = vec![Train {
+        name: "Q1".to_string(),
+        capacity: 10,
+        current_node: "B".to_string(),
+    }];
 
     // List of packages to move
-    let mut packages = vec![
+    let mut packages_in_network = vec![
         Package {
             name: "K1".to_string(),
             weight: 5,
@@ -99,18 +96,6 @@ fn main() {
             name: "K2".to_string(),
             weight: 5,
             start_node: "C".to_string(),
-            destination_node: "A".to_string(),
-        },
-        Package {
-            name: "K3".to_string(),
-            weight: 5,
-            start_node: "D".to_string(),
-            destination_node: "A".to_string(),
-        },
-        Package {
-            name: "K4".to_string(),
-            weight: 1,
-            start_node: "D".to_string(),
             destination_node: "A".to_string(),
         },
     ];
@@ -136,65 +121,107 @@ fn main() {
 
     println!("Successfully created train network map {:?}\n", edge_map);
 
-    while !packages.is_empty() {
+    let mut packages_in_train: HashMap<String, Vec<Package>> = HashMap::new();
+
+    while !packages_in_network.is_empty() {
         for train in &mut trains {
-            println!("Processing train - {:?}", train);
+            println!(
+                "Processing train {}, current station {}",
+                train.name, train.current_node
+            );
 
             let mut load = 0;
-            // List of items in train
-            let mut package_in_train: VecDeque<Package> = VecDeque::new();
             let mut dropoffs: Vec<Package> = Vec::new();
+            let mut move_info = Move::new();
 
-            // Find list of packages in the current station
-            let mut to_pickup: VecDeque<Package> = packages
+            move_info.train = train.name.clone();
+
+            // Packages in current station
+            let package_in_current_station: Vec<&Package> = packages_in_network
                 .iter()
-                .cloned()
                 .filter(|p| p.start_node == train.current_node)
                 .collect();
 
-            let to_pickup_clone = to_pickup.clone();
+            move_info.start_node = train.current_node.clone();
 
-            println!(
-                "Loading packages to pick up at station {}, Packages to pickup are - {:?}",
-                train.current_node,
-                to_pickup_clone
-                    .iter()
-                    .map(|p| p.name.clone())
-                    .collect::<Vec<String>>()
-            );
+            // Track packages to pickup
+            move_info.pickup = package_in_current_station
+                .iter()
+                .map(|&p| p.clone())
+                .collect::<Vec<Package>>();
 
-            if to_pickup.is_empty() {
-                println!("No package in station {}", train.current_node);
+            if package_in_current_station.is_empty() {
+                println!("No packages in station {}", train.current_node);
             } else {
-                while let Some(package_to_pickup) = to_pickup.pop_front() {
-                    if load + package_to_pickup.weight <= train.capacity {
+                println!(
+                    "Loading packages to pick up at station {}, Packages to pickup are - {:?}",
+                    train.current_node,
+                    package_in_current_station
+                        .iter()
+                        .map(|&p| p.name.clone())
+                        .collect::<Vec<String>>()
+                );
+
+                package_in_current_station.iter().for_each(|&package| {
+                    if load + package.weight <= train.capacity {
                         println!(
-                            "Train - {}, is picking up package - {:?}",
-                            train.name, package_to_pickup
+                            "Train {} is picking up package {}",
+                            train.name, package.name
                         );
-                        // Load package in train
-                        package_in_train.push_back(package_to_pickup.clone());
+                        // Load package
+                        packages_in_train
+                            .entry(train.name.clone())
+                            .or_insert(vec![])
+                            .push(package.clone());
+
+                        println!(
+                            "Package loaded in train, current packages in train {} is {:?}",
+                            train.name,
+                            packages_in_train
+                                .get(&train.name.clone())
+                                .unwrap()
+                                .iter()
+                                .map(|p| p.name.clone())
+                                .collect::<Vec<String>>()
+                        );
                         // Update train carry limit
-                        load += package_to_pickup.weight;
-                        // Remove current package from the list of packages
-                        // in the network.
-                        packages.retain(|p| p.name != package_to_pickup.name);
+                        load += package.weight;
                     } else {
                         println!("Train {} is full", train.name);
-                        break;
                     }
-                }
+                });
+
+                // Remove the picked up packages from the network
+                packages_in_network.retain(|p| p.start_node != train.current_node);
+
+                println!(
+                    "Packages in network after operation {:?}",
+                    packages_in_network
+                        .iter()
+                        .map(|p| p.name.clone())
+                        .collect::<Vec<String>>()
+                );
             }
 
-            let start_node = train.current_node.clone();
-
             // If in train have packages, go to that package destination
-            let next_node = if let Some(destination) = package_in_train.front() {
-                destination.destination_node.clone()
+            let next_node: String = if let Some(packages) = packages_in_train.get(&train.name) {
+                let next_node_str = if let Some(package) = packages.first() {
+                    package.destination_node.clone()
+                } else {
+                    // if no packages in train, find the next
+                    // package to pickup from the global package variable
+                    packages_in_network
+                        .iter()
+                        .map(|p| p.start_node.clone())
+                        .next()
+                        .unwrap_or_else(|| train.current_node.clone())
+                };
+
+                next_node_str
             } else {
                 // if no packages in train, find the next
                 // package to pickup from the global package variable
-                packages
+                packages_in_network
                     .iter()
                     .map(|p| p.start_node.clone())
                     .next()
@@ -223,59 +250,60 @@ fn main() {
             train.current_node = next_node.clone();
             println!(
                 "Train {} moved to {} from {}",
-                train.name, next_node, start_node
+                train.name, next_node, train.current_node
             );
 
-            // Find packages to drop at this destination
-            let to_drop: VecDeque<Package> = package_in_train
-                .iter()
-                .cloned()
-                .filter(|p| p.destination_node == train.current_node)
-                .collect();
+            move_info.end_node = next_node.clone();
+            move_info.time = time;
+            move_info.train = train.name.clone();
 
-            // Drop packages
-            if to_drop.is_empty() {
-                println!("No packages to drop at station {}", train.current_node);
-            } else {
-                let to_dropz: Vec<&Package> = package_in_train
-                    .iter()
-                    .filter(|p| p.destination_node == train.current_node)
-                    .collect();
+            let train_content = packages_in_train.get_mut(&train.name);
 
-                println!(
-                    "Packages to drop at station {} is {:?}",
-                    train.current_node,
-                    to_dropz
-                        .iter()
-                        .map(|p| p.name.clone())
-                        .collect::<Vec<String>>()
-                );
-
-                // Track the dropped packages
-                dropoffs.extend(
-                    package_in_train
+            match train_content {
+                Some(packages) => {
+                    // Find package to drop at this station
+                    let to_drop: Vec<&Package> = packages
                         .iter()
                         .filter(|p| p.destination_node == train.current_node)
-                        .cloned()
-                        .collect::<Vec<Package>>(),
-                );
+                        .collect();
 
-                // Drop packages
-                package_in_train.retain(|p| p.destination_node != train.current_node);
-            }
-
-            println!("Packages left to be drop {:?}", packages);
-
-            let m = Move {
-                time,
-                train: train.name.clone(),
-                start_node: start_node,
-                pickup: to_pickup_clone.into(),
-                end_node: next_node,
-                dropoff: dropoffs,
+                    if to_drop.is_empty() {
+                        println!("No packages to drop at station {}", train.current_node);
+                    } else {
+                        println!(
+                            "Packages to drop at station {} is {:?}",
+                            train.current_node,
+                            to_drop
+                                .iter()
+                                .map(|p| p.name.clone())
+                                .collect::<Vec<String>>()
+                        );
+                        // Track the dropped packages
+                        dropoffs
+                            .extend(to_drop.iter().map(|&p| p.clone()).collect::<Vec<Package>>());
+                        // Actually drop the package
+                        packages.retain(|p| p.destination_node != train.current_node);
+                    }
+                }
+                None => {
+                    println!(
+                        "No packages to drop at station {}, train has not picked up anything.",
+                        train.current_node
+                    );
+                }
             };
 
-            moves.push(m);
+            move_info.dropoff = dropoffs;
+
+            println!(
+                "Packages left to be drop in the network {:?}",
+                packages_in_network
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<String>>()
+            );
+
+            moves.push(move_info);
 
             print!("\n");
         }
